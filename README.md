@@ -48,7 +48,8 @@
 一夜狼语音主持/
 ├── 一夜狼-语音主持.html   # 应用本体（单文件，含全部代码）
 ├── assets/                # 静态资源
-│   └── reward-wechat.png  # 打赏收款码
+│   ├── reward-wechat.png  # 微信收款码
+│   └── reward-alipay.png  # 支付宝收款码
 └── README.md              # 项目说明
 ```
 
@@ -62,6 +63,19 @@
 
 如果这个工具给你和朋友的桌游之夜带来了欢乐，欢迎请作者喝杯奶茶 ☕
 
-<img src="assets/reward-wechat.png" alt="微信收款码" width="260" />
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/reward-wechat.png" alt="微信收款码" width="260" />
+      <br />
+      <sub>微信扫码</sub>
+    </td>
+    <td align="center">
+      <img src="assets/reward-alipay.png" alt="支付宝收款码" width="260" />
+      <br />
+      <sub>支付宝扫码</sub>
+    </td>
+  </tr>
+</table>
 
-<sub>微信扫码打赏 · 随心随意，谢绝伸手党压力</sub>
+<sub>随心随意，谢绝伸手党压力</sub>
