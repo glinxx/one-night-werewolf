@@ -2,6 +2,8 @@
 
 一个**单文件**的「一夜狼人」桌游语音主持工具。打开即用，无需安装任何依赖，由浏览器自带语音合成（Web Speech API）自动用中文播报夜晚各角色的行动指令，并配合倒计时带领全场完成夜晚流程。
 
+> 在线预览：[https://glinxx.github.io/one-night-werewolf/](https://glinxx.github.io/one-night-werewolf/)
+
 > 本文件由原始散落文件 `9f4630ca9f5840d89757fe4e9c2815c4.html` 改名整理而来。
 
 ## 快速开始
