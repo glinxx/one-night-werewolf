@@ -225,6 +225,39 @@
   .time-val{font-size:26px;font-weight:800;color:var(--moon);min-width:46px;text-align:center}
   .time-unit{font-size:13px;color:var(--text-dim)}
 
+  /* ===== 播报内容自定义 ===== */
+  .broadcast-section{
+    background:var(--card-bg);border:1px solid var(--card-border);
+    border-radius:16px;padding:16px;margin-bottom:16px;
+  }
+  .bs-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+  .bs-head h3{font-size:14px;color:var(--text);font-weight:600;letter-spacing:1px}
+  .bs-toggle{font-size:12px;color:var(--text-dim);transition:transform .2s}
+  .broadcast-section.open .bs-toggle{transform:rotate(180deg)}
+  .bs-body{display:none;margin-top:14px}
+  .broadcast-section.open .bs-body{display:block}
+  .bs-desc{font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6}
+  .bs-role{
+    margin-bottom:12px;padding:12px;border-radius:12px;
+    background:rgba(255,255,255,.03);border:1px solid var(--card-border);
+  }
+  .bs-role:last-child{margin-bottom:0}
+  .bs-role-head{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .bs-field{margin-bottom:10px}
+  .bs-field:last-child{margin-bottom:0}
+  .bs-field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:4px;letter-spacing:1px;line-height:1.5}
+  .bs-field textarea{
+    width:100%;min-height:56px;resize:vertical;display:block;
+    background:rgba(255,255,255,.05);border:1px solid var(--card-border);
+    border-radius:10px;padding:10px 12px;color:var(--text);
+    font-family:inherit;font-size:13px;line-height:1.6;
+  }
+  .bs-field textarea:focus{outline:none;border-color:var(--accent);background:rgba(124,156,255,.08)}
+  .bs-actions{display:flex;gap:10px;margin-top:14px}
+  .bs-actions .btn-ghost{flex:1;padding:9px 14px;font-size:13px}
+  .bs-saved{font-size:12px;color:var(--good);margin-top:10px;opacity:0;transition:opacity .3s;text-align:center}
+  .bs-saved.show{opacity:1}
+
   /* ===== 倒计时 ===== */
   .countdown-box{
     text-align:center;margin-bottom:18px;
@@ -2945,6 +2978,21 @@
       <span class="ts-desc">语音播报完角色指令后自动开始倒计时，最后10秒语音倒数，倒计时结束自动进入下一角色</span>
     </div>
 
+    <div class="broadcast-section" id="broadcastSection">
+      <div class="bs-head" id="bsHead">
+        <h3>🎙 播报内容自定义</h3>
+        <span class="bs-toggle">▼</span>
+      </div>
+      <div class="bs-body">
+        <p class="bs-desc">可修改每个角色的语音播报词，输入后自动保存到浏览器，下次打开自动套用，开始游戏后生效。</p>
+        <div id="bsEditor"></div>
+        <div class="bs-actions">
+          <button class="btn btn-ghost" id="bsResetBtn">↺ 恢复默认播报</button>
+        </div>
+        <div class="bs-saved" id="bsSaved">✓ 已保存到浏览器</div>
+      </div>
+    </div>
+
     <div class="preset-row">
       <button class="btn btn-ghost preset-btn" data-preset="basic">6人新手局</button>
       <button class="btn btn-ghost preset-btn" data-preset="8">8人标准局</button>
@@ -3023,7 +3071,7 @@
 <div class="dawn-overlay" id="dawnOverlay">
   <div class="sun">☀️</div>
   <h2>天亮了</h2>
-  <p>夜晚行动结束，请所有玩家睁眼，开始自由讨论与投票</p>
+  <p id="dawnText">夜晚行动结束，请所有玩家睁眼，开始自由讨论与投票</p>
   <button class="btn" id="restartBtn">再开一局</button>
 </div>
 
@@ -3112,6 +3160,114 @@ const PRESETS = {
   basic: { werewolf:2, seer:1, robber:1, troublemaker:1, drunk:1, villager:3 },        // 9 = 6人
   8:      { werewolf:2, mysticwolf:1, minion:1, seer:1, robber:1, troublemaker:1, witch:1, insomniac:1, villager:2 }, // 11 = 8人
   adv:    { werewolf:1, alphawolf:1, mysticwolf:1, minion:1, seer:1, apprenticeseer:1, robber:1, witch:1, troublemaker:1, drunk:1, revealer:1, insomniac:1 }, // 12 = 9人进阶
+};
+
+/* ============ 全局播报文案 ============ */
+const BROADCAST = {
+  open: '天黑了，请所有玩家闭眼。',
+  dawn: '天亮了，请所有玩家睁眼。夜晚行动结束，开始自由讨论与投票。',
+  specialWake: '化身幽灵，若你查看的是失眠者的牌，请睁眼确认自己当前的身份。',
+  specialSleep: '化身幽灵请闭眼。'
+};
+
+/* ============ 自定义播报（浏览器本地存储） ============ */
+const CUSTOM_KEY = 'onw_broadcast_custom';
+const BROADCAST_DEFAULT = { ...BROADCAST };
+const ROLES_TEXT_DEFAULT = {};
+ROLES.forEach(r=>{ if(r.night) ROLES_TEXT_DEFAULT[r.id] = { wake:r.wake, action:r.action, sleep:r.sleep }; });
+
+function loadCustom(){
+  try{ return JSON.parse(localStorage.getItem(CUSTOM_KEY) || 'null'); }
+  catch(e){ return null; }
+}
+function saveCustom(){
+  const data = { texts:{ ...BROADCAST }, roles:{} };
+  ROLES.forEach(r=>{ if(r.night) data.roles[r.id] = { wake:r.wake, action:r.action, sleep:r.sleep }; });
+  try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify(data)); }catch(e){}
+}
+function applyCustom(){
+  const c = loadCustom();
+  if(!c) return;
+  if(c.texts) ['open','dawn','specialWake','specialSleep'].forEach(k=>{
+    if(typeof c.texts[k] === 'string') BROADCAST[k] = c.texts[k];
+  });
+  if(c.roles) ROLES.forEach(r=>{
+    const o = r.night ? c.roles[r.id] : null;
+    if(o) ['wake','action','sleep'].forEach(k=>{
+      if(typeof o[k] === 'string') r[k] = o[k];
+    });
+  });
+}
+applyCustom();
+
+/* ============ 播报内容编辑器 ============ */
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+let bsSavedTimer = null;
+function flashSaved(){
+  const el = document.getElementById('bsSaved');
+  el.classList.add('show');
+  clearTimeout(bsSavedTimer);
+  bsSavedTimer = setTimeout(()=>el.classList.remove('show'), 1500);
+}
+function syncDawnOverlay(){
+  document.getElementById('dawnText').textContent = BROADCAST.dawn;
+}
+function renderBroadcastEditor(){
+  const box = document.getElementById('bsEditor');
+  box.innerHTML = '';
+
+  const makeField = (label, scope, id, field, value) => `
+    <div class="bs-field">
+      <label>${label}</label>
+      <textarea data-scope="${scope}" data-id="${id}" data-field="${field}">${escHtml(value)}</textarea>
+    </div>`;
+
+  // 全局文案
+  const global = document.createElement('div');
+  global.className = 'bs-role';
+  global.innerHTML = `<div class="bs-role-head">🌙 全局播报</div>`
+    + makeField('天黑开场白', 'texts', 'open', '', BROADCAST.open)
+    + makeField('特殊结算 · 化身幽灵睁眼（同时选择化身幽灵与失眠者时播报）', 'texts', 'specialWake', '', BROADCAST.specialWake)
+    + makeField('特殊结算 · 化身幽灵闭眼', 'texts', 'specialSleep', '', BROADCAST.specialSleep)
+    + makeField('天亮结束语（同步显示在天亮页面）', 'texts', 'dawn', '', BROADCAST.dawn);
+  box.appendChild(global);
+
+  // 各夜晚角色
+  ROLES.filter(r=>r.night).sort((a,b)=>a.order-b.order).forEach(r=>{
+    const sec = document.createElement('div');
+    sec.className = 'bs-role';
+    sec.innerHTML = `<div class="bs-role-head">${r.icon} ${r.name}</div>`
+      + makeField('睁眼播报', 'roles', r.id, 'wake', r.wake)
+      + makeField('行动指令', 'roles', r.id, 'action', r.action)
+      + makeField('闭眼播报', 'roles', r.id, 'sleep', r.sleep);
+    box.appendChild(sec);
+  });
+
+  // 输入即保存到浏览器
+  box.querySelectorAll('textarea').forEach(t=>{
+    t.addEventListener('input', ()=>{
+      if(t.dataset.scope === 'texts') BROADCAST[t.dataset.id] = t.value;
+      else{
+        const role = ROLES.find(r=>r.id === t.dataset.id);
+        if(role) role[t.dataset.field] = t.value;
+      }
+      saveCustom();
+      syncDawnOverlay();
+      flashSaved();
+    });
+  });
+}
+
+document.getElementById('bsHead').onclick = ()=>{
+  document.getElementById('broadcastSection').classList.toggle('open');
+};
+document.getElementById('bsResetBtn').onclick = ()=>{
+  if(!confirm('确定恢复所有默认播报内容吗？当前自定义将被清除。')) return;
+  try{ localStorage.removeItem(CUSTOM_KEY); }catch(e){}
+  Object.keys(BROADCAST_DEFAULT).forEach(k=>BROADCAST[k] = BROADCAST_DEFAULT[k]);
+  ROLES.forEach(r=>{ if(r.night) Object.assign(r, ROLES_TEXT_DEFAULT[r.id]); });
+  renderBroadcastEditor();
+  syncDawnOverlay();
 };
 
 /* ============ 状态 ============ */
@@ -3275,7 +3431,7 @@ function buildSteps(){
   const s = [];
   // 开场
   s.push({ type:'open', icon:'🌙', title:'夜晚降临', roleText:'',
-    text:'天黑了，请所有玩家闭眼。',
+    text: BROADCAST.open,
     tl:'所有人闭眼' });
 
   const nightRoles = ROLES.filter(r=>r.night && quantities[r.id]>0).sort((a,b)=>a.order-b.order);
@@ -3293,16 +3449,16 @@ function buildSteps(){
   // 化身幽灵+失眠者 特殊结算
   if(quantities.doppelganger>0 && quantities.insomniac>0){
     s.push({ type:'special', icon:'👻', title:'特殊结算', roleText:'化身幽灵·失眠者',
-      text:'化身幽灵，若你查看的是失眠者的牌，请睁眼确认自己当前的身份。',
+      text: BROADCAST.specialWake,
       tl:'化身幽灵确认身份' });
     s.push({ type:'special', icon:'😴', title:'特殊结算', roleText:'化身幽灵·失眠者',
-      text:'化身幽灵请闭眼。',
+      text: BROADCAST.specialSleep,
       tl:'化身幽灵闭眼' });
   }
 
   // 天亮
   s.push({ type:'dawn', icon:'🌅', title:'天亮了', roleText:'',
-    text:'天亮了，请所有玩家睁眼。夜晚行动结束，开始自由讨论与投票。',
+    text: BROADCAST.dawn,
     tl:'天亮' });
   return s;
 }
@@ -3613,8 +3769,9 @@ function showDawn(){
   stepToken++;
   hideCountdown();
   document.getElementById('game').style.display='none';
+  syncDawnOverlay();
   document.getElementById('dawnOverlay').classList.add('show');
-  speak('天亮了，请所有玩家睁眼。夜晚行动结束，开始自由讨论与投票。');
+  speak(BROADCAST.dawn);
 }
 document.getElementById('restartBtn').onclick = ()=>{
   document.getElementById('dawnOverlay').classList.remove('show');
@@ -3631,6 +3788,8 @@ Object.entries(PRESETS.basic).forEach(([id,n])=>quantities[id]=n);
 renderRoles();
 updateSummary();
 renderHistory();
+renderBroadcastEditor();
+syncDawnOverlay();
 </script>
 
 
